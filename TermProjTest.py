@@ -267,10 +267,18 @@ def drawLetter(letter):
     letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/2))
     gameDisplay.blit(letterName, letterRect)
 
+def inputSigns():
+    # Create a sample listener and controller
+    listener = InputListener()
+    controller = Leap.Controller()
+    # Have the sample listener receive events from the controller
+    controller.add_listener(listener)
+    
+
 def dictionaryScreen():
     diction = True
     # Create a sample listener and controller
-    listener = SampleListener()
+    listener = MainListener()
     controller = Leap.Controller()
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
@@ -285,6 +293,26 @@ def dictionaryScreen():
         gameDisplay.blit(dictTitle, dictTitleRect)
         
         pygame.draw.line(gameDisplay, BLUE, (margin2 * 3, displayHeight/5), (displayWidth - margin2 * 3, displayHeight/5), 3)
+        
+        buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+        
+        buttonW, buttonH = 180, 40
+        x1 = margin1
+        y1 = displayHeight - buttonH - margin1
+        backButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        
+        if onButton(backButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        
+        # creates text on back to main menu button
+        x2 = margin1 + buttonW/2
+        y2 = displayHeight - buttonH/2 - margin1
+        backRect = backName.get_rect(center=(x2, y2))
+        gameDisplay.blit(backName, backRect)
         
         headerFont = pygame.font.SysFont("None", 30)
         headerName = headerFont.render("Place an ASL sign in front to translate to English!",True,BLUE,PINK)
@@ -304,6 +332,9 @@ def dictionaryScreen():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
+            if event.type == MOUSEBUTTONDOWN:
+                if onButton(backButton):
+                    startScreen()
 
         pygame.display.update()
         
