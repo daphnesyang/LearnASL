@@ -25,7 +25,7 @@ LIGHTBLUE = (153, 204, 255)
 LIGHTYELLOW = (255,236,139)
 GRAYYELLOW = (238,220,130)
 CORAL = (240, 128, 128)
-PINK = (255,182,193)
+PINK = (255, 192, 203)
 
 signData = {"Thumb position" : (0, 0, 0),
             "Thumb direction" : (0, 0, 0),
@@ -121,7 +121,7 @@ def startScreen():
         # creates the title of the game
         titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
         titleName = titleFont.render("Learn ASL",True,BLUE,LIGHTBLUE)
-        titleRect = titleName.get_rect(center=(displayWidth/2, displayHeight/2 - 100))
+        titleRect = titleName.get_rect(center=(displayWidth/2, displayHeight/2 - 50))
         gameDisplay.blit(titleName, titleRect)
         # creates help icon
         gameDisplay.blit(question, questionRect)
@@ -130,15 +130,15 @@ def startScreen():
         # creates button for dictionary mode
         buttonW, buttonH = 180, 60
         x1 = displayWidth/4 - buttonW/2
-        y1 = displayHeight/2 - buttonH/2
+        y1 = displayHeight/2 - buttonH/2 + 50
         dictionaryButton = pygame.Rect(x1, y1, buttonW, buttonH)
         # creates button for game mode
         x2 = displayWidth/2 - buttonW/2
-        y2 = displayHeight/2 - buttonH/2
+        y2 = displayHeight/2 - buttonH/2 + 50
         gameButton = pygame.Rect(x2, y2, buttonW, buttonH)
         # creates button for test mode
         x3 = displayWidth/4 * 3 - buttonW/2
-        y3 = displayHeight/2 - buttonH/2
+        y3 = displayHeight/2 - buttonH/2 + 50
         testButton = pygame.Rect(x3, y3, buttonW, buttonH)
         # makes button change colors when mouse is over it
         if onButton(dictionaryButton):
@@ -161,16 +161,20 @@ def startScreen():
             testName = buttonFont.render("TEST",True,BLUE,LIGHTYELLOW)
         if onButton(questionRect):
             pixels = pygame.PixelArray(question)
-            pixels.replace((255, 255, 255), (211,211,211))
+            pixels.replace(Color(255, 255, 255), Color(211,211,211))
+            del pixels
+        else:
+            pixels = pygame.PixelArray(question)
+            pixels.replace(Color(211, 211, 211), Color(255,255,255))
             del pixels
             
             
         # creates text on button
-        dictRect = dictName.get_rect(center=(displayWidth/4, displayHeight/2))
+        dictRect = dictName.get_rect(center=(displayWidth/4, displayHeight/2 + 50))
         gameDisplay.blit(dictName, dictRect)
-        gameRect = gameName.get_rect(center=(displayWidth/2, displayHeight/2))
+        gameRect = gameName.get_rect(center=(displayWidth/2, displayHeight/2 + 50))
         gameDisplay.blit(gameName, gameRect)
-        testRect = testName.get_rect(center=(displayWidth/4 * 3, displayHeight/2))
+        testRect = testName.get_rect(center=(displayWidth/4 * 3, displayHeight/2 + 50))
         gameDisplay.blit(testName, testRect)
         
         for event in pygame.event.get():
@@ -180,8 +184,12 @@ def startScreen():
             if event.type == MOUSEBUTTONDOWN:
                 if onButton(dictionaryButton):
                     dictionaryScreen()
-                elif onButton(gameButton):
+                if onButton(gameButton):
                     gameScreen()
+                if onButton(questionRect):
+                    helpScreen()
+                if onButton(testRect):
+                    testScreen()
         
         pygame.display.update()
         
@@ -259,12 +267,31 @@ def isD(signData):
             if abs(signData[point][i] - signD[point][i]) >= 30:
                 return False
     return True    
+    
+def isE(signData):
+    signE = {'Middle direction': (-0.1341893970966339, -0.8451904654502869, 0.5173453092575073),
+            'Index position': (-19.97177505493164, -34.586639404296875, -32.34907150268555),
+            'Thumb direction': (0.23294733464717865, -0.4462568163871765, -0.8640546202659607),
+            'Pinky direction': (-0.34612298011779785, -0.9327086210250854, -0.10125898569822311),
+            'Index direction': (0.007777102291584015, -0.8596974611282349, 0.5107443928718567),
+            'Pinky position': (20.987438201904297, -35.15906524658203, -32.88402557373047),
+            'Middle position': (-8.258373260498047, -38.12126922607422, -32.984344482421875),
+            'Ring direction': (-0.20808924734592438, -0.9781015515327454, 0.004028234630823135),
+            'Ring position': (8.19601058959961, -46.58356475830078, -42.25594711303711),
+            'Thumb position': (-1.4318466186523438, -41.566551208496094, -23.13913917541504)}
+            
+    for point in signData:
+        for i in range(0,3):
+            #print(point, abs(signData[point][i] - signE[point][i]))
+            if abs(signData[point][i] - signE[point][i]) >= 30:
+                return False
+    return True   
 
 
 def drawLetter(letter):
-    letterFont = pygame.font.SysFont("None", 80)
+    letterFont = pygame.font.SysFont("None", 200)
     letterName = letterFont.render(letter,True,BLUE,PINK)
-    letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/2))
+    letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/2 + margin2))
     gameDisplay.blit(letterName, letterRect)
 
 def inputSigns():
@@ -274,6 +301,62 @@ def inputSigns():
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
     
+def helpScreen():
+    help = True
+    # Create a sample listener and controller
+    listener = MainListener()
+    controller = Leap.Controller()
+    # Have the sample listener receive events from the controller
+    controller.add_listener(listener)
+    
+    while help:
+        
+        gameDisplay.fill(PINK)
+        titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
+        helpTitle = titleFont.render("Help",True,BLUE,PINK)
+        helpTitleRect = helpTitle.get_rect(center=(displayWidth/2, displayHeight/8))
+        gameDisplay.blit(helpTitle, helpTitleRect)
+        
+        pygame.draw.line(gameDisplay, BLUE, (margin2 * 3, displayHeight/5), (displayWidth - margin2 * 3, displayHeight/5), 3)
+        
+        alpha = pygame.image.load("aslalpha.png")
+        alpha = pygame.transform.scale(alpha, (640, 400))
+        alphaRect = alpha.get_rect(center=(displayWidth/2, displayHeight/2 + margin3))
+        gameDisplay.blit(alpha, alphaRect)
+        
+        buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+        
+        buttonW, buttonH = 180, 40
+        x1 = margin1
+        y1 = displayHeight - buttonH - margin1
+        backButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        
+        if onButton(backButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        
+        # creates text on back to main menu button
+        x2 = margin1 + buttonW/2
+        y2 = displayHeight - buttonH/2 - margin1
+        backRect = backName.get_rect(center=(x2, y2))
+        gameDisplay.blit(backName, backRect)
+    
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == MOUSEBUTTONDOWN:
+                if onButton(backButton):
+                    startScreen()
+
+        pygame.display.update()
+    
+    
+
 
 def dictionaryScreen():
     diction = True
@@ -286,7 +369,7 @@ def dictionaryScreen():
     while diction:
         
         gameDisplay.fill(PINK)
-        # if oneHand == True:
+
         titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
         dictTitle = titleFont.render("Dictionary Mode",True,BLUE,PINK)
         dictTitleRect = dictTitle.get_rect(center=(displayWidth/2, displayHeight/8))
@@ -314,11 +397,11 @@ def dictionaryScreen():
         backRect = backName.get_rect(center=(x2, y2))
         gameDisplay.blit(backName, backRect)
         
-        headerFont = pygame.font.SysFont("None", 30)
+        headerFont = pygame.font.SysFont("greatlakes.ttf", 40)
         headerName = headerFont.render("Place an ASL sign in front to translate to English!",True,BLUE,PINK)
         headerRect = headerName.get_rect(center=(displayWidth/2, displayHeight/4))
         gameDisplay.blit(headerName, headerRect)
-        
+ 
         if isA(signData):
             drawLetter("A")
         if isB(signData):
@@ -327,6 +410,59 @@ def dictionaryScreen():
             drawLetter("C")
         if isD(signData):
             drawLetter("D")
+        if isE(signData):
+            drawLetter("E")
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == MOUSEBUTTONDOWN:
+                if onButton(backButton):
+                    startScreen()
+                    diction = False
+
+        pygame.display.update()
+        
+def gameScreen():
+
+    game = True
+    # Create a sample listener and controller
+    listener = MainListener()
+    controller = Leap.Controller()
+    # Have the sample listener receive events from the controller
+    controller.add_listener(listener)
+    
+    while game:
+        
+        gameDisplay.fill(PINK)
+        titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
+        gameTitle = titleFont.render("Game Mode",True,BLUE,PINK)
+        gameTitleRect = gameTitle.get_rect(center=(displayWidth/2, displayHeight/8))
+        gameDisplay.blit(gameTitle, gameTitleRect)
+        
+        pygame.draw.line(gameDisplay, BLUE, (margin2 * 3, displayHeight/5), (displayWidth - margin2 * 3, displayHeight/5), 3)
+        
+        buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+        
+        buttonW, buttonH = 180, 40
+        x1 = margin1
+        y1 = displayHeight - buttonH - margin1
+        backButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        
+        if onButton(backButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        
+        # creates text on back to main menu button
+        x2 = margin1 + buttonW/2
+        y2 = displayHeight - buttonH/2 - margin1
+        backRect = backName.get_rect(center=(x2, y2))
+        gameDisplay.blit(backName, backRect)
+    
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -337,12 +473,57 @@ def dictionaryScreen():
                     startScreen()
 
         pygame.display.update()
-        
-def gameScreen():
-    pass
+    
     
 def testScreen():
-    pass
+
+    test = True
+    # Create a sample listener and controller
+    listener = MainListener()
+    controller = Leap.Controller()
+    # Have the sample listener receive events from the controller
+    controller.add_listener(listener)
+    
+    while test:
+        
+        gameDisplay.fill(PINK)
+        titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
+        testTitle = titleFont.render("Test Mode",True,BLUE,PINK)
+        testTitleRect = testTitle.get_rect(center=(displayWidth/2, displayHeight/8))
+        gameDisplay.blit(testTitle, testTitleRect)
+        
+        pygame.draw.line(gameDisplay, BLUE, (margin2 * 3, displayHeight/5), (displayWidth - margin2 * 3, displayHeight/5), 3)
+        
+        buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+        
+        buttonW, buttonH = 180, 40
+        x1 = margin1
+        y1 = displayHeight - buttonH - margin1
+        backButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        
+        if onButton(backButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        
+        # creates text on back to main menu button
+        x2 = margin1 + buttonW/2
+        y2 = displayHeight - buttonH/2 - margin1
+        backRect = backName.get_rect(center=(x2, y2))
+        gameDisplay.blit(backName, backRect)
+    
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == MOUSEBUTTONDOWN:
+                if onButton(backButton):
+                    startScreen()
+
+        pygame.display.update()
         
 startScreen()
 quit()
