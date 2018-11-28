@@ -1,231 +1,92 @@
-import pygame, sys
-from pygame.locals import *
-import os
-import Leap, sys, thread, time
-from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
-
-pygame.init()
-displayWidth = 800
-displayHeight = 600
-gameDisplay = pygame.display.set_mode((displayWidth, displayHeight))
-pygame.display.set_caption("Term Project")
-clock = pygame.time.Clock()
-
-BLUE = (100, 100, 255)
-LIGHTBLUE = (153, 204, 255)
-LIGHTYELLOW = (255, 255, 153)
-CORAL = (240, 128, 128)
-
-
-rightDict = {"Thumb finger" : None,
-            "Index finger" : None,
-            "Middle finger" : None,
-            "Ring finger" : None,
-            "Pinky finger" : None}
-            
-leftDict = {"Thumb finger" : None,
-            "Index finger" : None,
-            "Middle finger" : None,
-            "Ring finger" : None,
-            "Pinky finger" : None}
-            
-signData = {}
-
-
-class SampleListener(Leap.Listener):
-    finger_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']
-    state_names = ['STATE_INVALID', 'STATE_START', 'STATE_UPDATE', 'STATE_END']
-
-    def on_init(self, controller):
-        print "Initialized"
-
-    def on_connect(self, controller):
-        print "Connected"
-
-        # Enable gestures
-        controller.enable_gesture(Leap.Gesture.TYPE_CIRCLE);
-        controller.enable_gesture(Leap.Gesture.TYPE_KEY_TAP);
-        controller.enable_gesture(Leap.Gesture.TYPE_SCREEN_TAP);
-        controller.enable_gesture(Leap.Gesture.TYPE_SWIPE);
-
-    def on_disconnect(self, controller):
-        # Note: not dispatched when running in a debugger.
-        print "Disconnected"
-
-    def on_exit(self, controller):
-        print "Exited"
-
-    def on_frame(self, controller):
-        # Get the most recent frame and report some basic information
-        frame = controller.frame()
-        # Get hands
-        for hand in frame.hands:
-
-            handType = "Left hand" if hand.is_left else "Right hand"
-
-            # Get the hand's normal vector and direction
-            normal = hand.palm_normal
-            direction = hand.direction
-
-            # Get arm bone
-            arm = hand.arm
-
-            # Get fingers
-            for finger in hand.fingers:
-                bone = finger.bone(3)
-                if handType == "Left hand":
-                    leftDict["%s finger" % (self.finger_names[finger.type])] = str(bone.next_joint)
-                elif handType == "Right hand":
-                    rightDict["%s finger" % (self.finger_names[finger.type])] = str(bone.next_joint)
-                
-
-                        
-def main():
-    # Create a sample listener and controller
-    listener = SampleListener()
-    controller = Leap.Controller()
-
-    # Have the sample listener receive events from the controller
-    controller.add_listener(listener)
-
-    # Keep this process running until Enter is pressed
-    print "Press Enter to quit..."
-    try:
-        sys.stdin.readline()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        # Remove the sample listener when done
-        controller.remove_listener(listener)
-
-
-
-def onButton(buttonRect):
-    mouse = pygame.mouse.get_pos()
-    if (mouse[0] >= buttonRect[0] and mouse[1] >= buttonRect[1] and 
-        mouse[0] <= buttonRect[0] + buttonRect[2] and 
-        mouse[1] <= buttonRect[1] + buttonRect[3]):
-            return True
-    return False
-
-def startScreen():
-    start = True
-    while start:
-        gameDisplay.fill(LIGHTBLUE)
-        # creates the title of the game
-        titleFont = pygame.font.SysFont("None",100)
-        titleName = titleFont.render("Learn ASL",True,BLUE,LIGHTBLUE)
-        titleRect = titleName.get_rect(center=(displayWidth/2, displayHeight/2 - 100))
-        gameDisplay.blit(titleName, titleRect)
-        # creates button for dictionary mode
-        buttonW, buttonH = 250, 80
-        x1 = displayWidth/2 - buttonW/2
-        y1 = displayHeight/2 - buttonH/2
-        dictionaryButton = pygame.Rect(x1, y1, buttonW, buttonH)
-        pygame.draw.rect(gameDisplay, LIGHTYELLOW, dictionaryButton)
-        # creates text on button
-        buttonFont = pygame.font.SysFont("None",50)
-        buttonName = buttonFont.render("Dictionary",True,BLUE,LIGHTYELLOW)
-        buttonRect = buttonName.get_rect(center=(displayWidth/2, displayHeight/2))
-        gameDisplay.blit(buttonName, buttonRect)
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            if event.type == MOUSEBUTTONDOWN:
-                if onButton(dictionaryButton):
-                    dictionaryScreen()
-        
-        pygame.display.update()
-        
-        
 def isA(signData):
-    signA = {"Thumb Metacarpal" : (0, 0, 0),
-            "Thumb Proximal" : (0.625715, -0.0826577, 0.77566),
-            "Thumb Intermediate" : (0.471937, 0.0112348, 0.881561),
-            "Thumb Distal" : (0.789927, -0.203823, 0.578335),
-            "Index Metacarpal" : (0.380931, -0.0480936, 0.92335),
-            "Index Proximal" : (0.207414, 0.93859, 0.275731),
-            "Index Intermediate" : (-0.395757, 0.494317, -0.773968),
-            "Index Distal" : (-0.483214, -0.137658, -0.864612),
-            "Middle Metacarpal" : (0.251279, -0.0383372, 0.967155),
-            "Middle Proximal" : (0.274882, 0.942102, 0.192052),
-            "Middle Intermediate" : (-0.103881, 0.395146, -0.912726),
-            "Middle Distal" : (-0.258559, -0.203323, -0.944355),
-            "Ring Metacarpal" : (0.103487, -0.0235215, 0.994353),
-            "Ring Proximal" : (0.314881, 0.92596, 0.208441),
-            "Ring Intermediate" : (0.0618712, 0.369638, -0.927114),
-            "Ring Distal" : (-0.131693, -0.216614, -0.967334),
-            "Pinky Metacarpal" : (-0.0402554, -0.0488057, 0.997997),
-            "Pinky Proximal" : (0.416864, 0.875937, 0.242812),
-            "Pinky Intermediate" : (0.340155, 0.279459, -0.897885),
-            "Pinky Distal" : (0.0665021, -0.258406, -0.963745)}
+    signA = {'Middle direction': (-0.12259446829557419, -0.7422619462013245, 0.6588003635406494),
+            'Index position': (-20.34893798828125, -47.27545928955078, -15.374573707580566),
+            'Thumb direction': (-0.31459930539131165, -0.3205173909664154, -0.8934740424156189),
+            'Pinky direction': (-0.3808663487434387, -0.778164803981781, 0.49939993023872375),
+            'Index direction': (0.17356082797050476, -0.784588634967804, 0.5952287912368774),
+            'Pinky position': (16.863195419311523, -38.91485595703125, -7.1452436447143555),
+            'Middle position': (-10.75601577758789, -51.36969757080078, -11.78918743133545),
+            'Ring direction': (-0.22775235772132874, -0.7808622121810913, 0.5817069411277771),
+            'Ring position': (4.046058654785156, -49.00689697265625, -9.245894432067871),
+            'Thumb position': (-46.08635711669922, -31.666282653808594, -28.132286071777344)}
+
     for point in signData:
         for i in range(0,3):
-            print(point, abs(signData[point][i] - signA[point][i]))
-            if abs(signData[point][i] - signA[point][i]) >= 1:
+            #print(point, abs(signData[point][i] - signA[point][i]))
+            if abs(signData[point][i] - signA[point][i]) >= 20:
                 return False
     return True
 
-def drawLetter(letter):
-    letterFont = pygame.font.SysFont("None", 80)
-    letterName = letterFont.render(letter,True,BLUE,CORAL)
-    letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/4))
-    gameDisplay.blit(letterName, letterRect)
-
-def dictionaryScreen():
-    diction = True
-    # Create a sample listener and controller
-    listener = SampleListener()
-    controller = Leap.Controller()
-    # Have the sample listener receive events from the controller
-    controller.add_listener(listener)
     
-    while diction:
-        
-        gameDisplay.fill(CORAL)
-        
-        if isA(signData):
-            drawLetter("A")
-        #displays coordinates of fingers on the right hand
-        rightHandFont = pygame.font.SysFont("None", 40)
-        rightHandName = rightHandFont.render("Right Hand",True,BLUE,CORAL)
-        rightHandRect = rightHandName.get_rect(center=(displayWidth/4, displayHeight/4))
-        gameDisplay.blit(rightHandName, rightHandRect)        
-        
-        rightPointsFont = pygame.font.SysFont("None",25)
-        
-        fingers = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
-        
-        count = 1
-        for finger in fingers:
-            fingerName = rightPointsFont.render("%s finger: " % finger + str(rightDict[str(finger) + " finger"]),True,BLUE,CORAL)
-            fingerRect = fingerName.get_rect(center=(displayWidth/4, displayHeight/4 + 30 * count))
-            gameDisplay.blit(fingerName, fingerRect)
-            count += 1
-        
-        #displays coordinates of the fingers on the left hand
-        leftHandFont = pygame.font.SysFont("None", 40)
-        leftHandName = leftHandFont.render("Left Hand",True,BLUE,CORAL)
-        leftHandRect = leftHandName.get_rect(center=(displayWidth/4 * 3, displayHeight/4))
-        gameDisplay.blit(leftHandName, leftHandRect)  
-        
-        leftPointsFont = pygame.font.SysFont("None",25)
-        
-        count = 1
-        for finger in fingers:
-            fingerName = leftPointsFont.render("%s finger: " % finger + str(leftDict[str(finger) + " finger"]),True,BLUE,CORAL)
-            fingerRect = fingerName.get_rect(center=(displayWidth/4 * 3, displayHeight/4 + 30 * count))
-            gameDisplay.blit(fingerName, fingerRect)
-            count += 1
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-
-        pygame.display.update()
-        
-startScreen()
-quit()
+def isB(signData):
+    signB = {'Middle direction': (0.0, -0.09695833921432495, -0.9897810816764832),
+            'Index position': (0.0, 1.362518310546875, -89.27637481689453),
+            'Thumb direction': (0.0, -0.09617394208908081, -0.9925882816314697),
+            'Pinky direction': (-0.0, -0.1064680814743042, -0.993479311466217),
+            'Index direction': (0.0, -0.03934100642800331, -0.9922375679016113),
+            'Pinky position': (0.0, -4.2476043701171875, -66.86676788330078),
+            'Middle position': (0.0, -1.4759674072265625, -98.37427520751953),
+            'Ring direction': (-0.0, -0.17012502253055573, -0.985412061214447),
+            'Ring position': (0.0, -7.00799560546875, -89.08325958251953),
+            'Thumb position': (0.0, -5.3599395751953125, -17.735065460205078)}
+    for point in signData:
+        for i in range(0,3):
+            #print(point, abs(signData[point][i] - signB[point][i]))
+            if abs(signData[point][i] - signB[point][i]) >= 20:
+                return False
+    return True
+    
+def isC(signData):
+    signC = {'Middle direction': (-0.11509914696216583, -0.988159716129303, -0.10145197808742523),
+            'Index position': (-16.696165084838867, -32.5296630859375, -51.2198600769043),
+            'Thumb direction': (-0.009697690606117249, -0.1362699717283249, -0.9906242489814758),
+            'Pinky direction': (-0.21735993027687073, -0.7622607946395874, -0.6096828579902649),
+            'Index direction': (0.053516894578933716, -0.9912512898445129, -0.12065136432647705),
+            'Pinky position': (22.929630279541016, -37.313629150390625, -49.67544937133789),
+            'Middle position': (-3.4170799255371094, -35.87608337402344, -54.4104118347168),
+            'Ring direction': (-0.22275136411190033, -0.9580744504928589, 0.18020832538604736),
+            'Ring position': (3.870600700378418, -60.292083740234375, -24.482906341552734),
+            'Thumb position': (-35.851539611816406, -8.44818115234375, -29.826080322265625)}
+    for point in signData:
+        for i in range(0,3):
+            #print(point, abs(signData[point][i] - signC[point][i]))
+            if abs(signData[point][i] - signC[point][i]) >= 30:
+                return False
+    return True
+    
+def isD(signData):
+    signD = {'Middle direction': (-0.14766627550125122, -0.9684712886810303, 0.2006441354751587),
+            'Index position': (-26.90310287475586, 15.46893310546875, -87.02784729003906),
+            'Thumb direction': (0.31990450620651245, -0.6040832996368408, -0.7298934459686279),
+            'Pinky direction': (-0.36852264404296875, -0.926325798034668, 0.07817703485488892),
+            'Index direction': (-0.08077648282051086, 0.12260140478610992, -0.9891632795333862),
+            'Pinky position': (17.658294677734375, -47.5909423828125, -20.312198638916016),
+            'Middle position': (-11.244749069213867, -64.1679916381836, -30.720794677734375),
+            'Ring direction': (-0.21881134808063507, -0.9654781222343445, 0.14132824540138245),
+            'Ring position': (4.519590377807617, -59.88311004638672, -27.41565704345703),
+            'Thumb position': (-7.20628547668457, -55.367286682128906, -15.808856964111328)}
+    for point in signData:
+        for i in range(0,3):
+            #print(point, abs(signData[point][i] - signD[point][i]))
+            if abs(signData[point][i] - signD[point][i]) >= 30:
+                return False
+    return True    
+    
+def isE(signData):
+    signE = {'Middle direction': (-0.1341893970966339, -0.8451904654502869, 0.5173453092575073),
+            'Index position': (-19.97177505493164, -34.586639404296875, -32.34907150268555),
+            'Thumb direction': (0.23294733464717865, -0.4462568163871765, -0.8640546202659607),
+            'Pinky direction': (-0.34612298011779785, -0.9327086210250854, -0.10125898569822311),
+            'Index direction': (0.007777102291584015, -0.8596974611282349, 0.5107443928718567),
+            'Pinky position': (20.987438201904297, -35.15906524658203, -32.88402557373047),
+            'Middle position': (-8.258373260498047, -38.12126922607422, -32.984344482421875),
+            'Ring direction': (-0.20808924734592438, -0.9781015515327454, 0.004028234630823135),
+            'Ring position': (8.19601058959961, -46.58356475830078, -42.25594711303711),
+            'Thumb position': (-1.4318466186523438, -41.566551208496094, -23.13913917541504)}
+            
+    for point in signData:
+        for i in range(0,3):
+            #print(point, abs(signData[point][i] - signE[point][i]))
+            if abs(signData[point][i] - signE[point][i]) >= 20:
+                return False
+    return True   
