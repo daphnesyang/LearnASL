@@ -3,6 +3,8 @@ from pygame.locals import *
 import os
 import Leap, sys, thread, time
 from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
+from Block import Block
+import math
 
 pygame.init()
 displayWidth = 800
@@ -26,6 +28,7 @@ LIGHTYELLOW = (255,236,139)
 GRAYYELLOW = (238,220,130)
 CORAL = (240, 128, 128)
 PINK = (255, 192, 203)
+WHITE = (255, 255, 255)
 
 signData = {"Thumb position" : (0, 0, 0),
             "Thumb direction" : (0, 0, 0),
@@ -283,7 +286,7 @@ def isE(signData):
     for point in signData:
         for i in range(0,3):
             #print(point, abs(signData[point][i] - signE[point][i]))
-            if abs(signData[point][i] - signE[point][i]) >= 30:
+            if abs(signData[point][i] - signE[point][i]) >= 20:
                 return False
     return True   
 
@@ -294,20 +297,43 @@ def drawLetter(letter):
     letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/2 + margin2))
     gameDisplay.blit(letterName, letterRect)
 
-def inputSigns():
-    # Create a sample listener and controller
-    listener = InputListener()
-    controller = Leap.Controller()
-    # Have the sample listener receive events from the controller
-    controller.add_listener(listener)
-    
-def helpScreen():
-    help = True
+def inputScreen():
     # Create a sample listener and controller
     listener = MainListener()
     controller = Leap.Controller()
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
+
+    #Textbox
+    gameDisplay.fill(WHITE) # draw screen fill
+    boxHeight = 60
+    textbox = pygame.Rect(0,displayHeight/3*2 - boxHeight/2,displayWidth,boxHeight)
+    pygame.draw.rect(gameDisplay, LIGHTYELLOW, textbox)
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            quit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                sign = sign[:-1]
+            elif event.key == pygame.K_RETURN:
+                sign = Letter(signData)
+            elif event.key == pygame.K_SPACE:
+                sign += " "
+            else:
+                sign += event.unicode
+    
+    pygame.display.update()
+    
+    
+def helpScreen():
+    help = True
+    # # Create a sample listener and controller
+    # listener = MainListener()
+    # controller = Leap.Controller()
+    # # Have the sample listener receive events from the controller
+    # controller.add_listener(listener)
     
     while help:
         
@@ -331,19 +357,34 @@ def helpScreen():
         y1 = displayHeight - buttonH - margin1
         backButton = pygame.Rect(x1, y1, buttonW, buttonH)
         
+        x4 = displayWidth - buttonW - margin1
+        y4 = displayHeight - buttonH - margin1
+        inputButton = pygame.Rect(x4, y4, buttonW, buttonH)
+        
         if onButton(backButton):
             pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
             backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,GRAYYELLOW)
         else:
             pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
             backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        if onButton(inputButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, inputButton)
+            inputName = buttonFont.render("INPUT SIGNS",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, inputButton)
+            inputName = buttonFont.render("INPUT SIGNS",True,BLUE,LIGHTYELLOW)
         
         # creates text on back to main menu button
         x2 = margin1 + buttonW/2
         y2 = displayHeight - buttonH/2 - margin1
         backRect = backName.get_rect(center=(x2, y2))
         gameDisplay.blit(backName, backRect)
-    
+        
+        x3 = displayWidth - margin1 - buttonW/2
+        y3 = displayHeight - buttonH/2 - margin1
+        inputRect = inputName.get_rect(center=(x3, y3))
+        gameDisplay.blit(inputName, inputRect)
+
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -352,6 +393,8 @@ def helpScreen():
             if event.type == MOUSEBUTTONDOWN:
                 if onButton(backButton):
                     startScreen()
+                if onButton(inputButton):
+                    inputScreen()
 
         pygame.display.update()
     
@@ -463,6 +506,44 @@ def gameScreen():
         backRect = backName.get_rect(center=(x2, y2))
         gameDisplay.blit(backName, backRect)
     
+        testBlock = Block(600,500,100, 300,10,"right","A")
+    
+        blocks = [testBlock]
+        
+        clock.tick(30)
+        
+        for block in blocks:
+
+            block.moveBlock()
+            
+            topPointsList = [[block.x, block.y],
+                            [block.x + block.length/math.sqrt(2), block.y - block.length/math.sqrt(2)],
+                            [block.x + block.length/math.sqrt(2) - block.width/math.sqrt(2), block.y - block.length/math.sqrt(2) - block.width/math.sqrt(2)],
+                            [block.x - block.width/math.sqrt(2), block.y - block.width/math.sqrt(2)]]
+            leftPointsList = [[block.x, block.y],
+                            [block.x, block.y + block.height],
+                            [block.x - block.width/math.sqrt(2), block.y + block.height - block.width/math.sqrt(2)],
+                            [block.x - block.width/math.sqrt(2), block.y - block.width/math.sqrt(2)]]
+            rightPointsList = [[block.x, block.y],
+                            [block.x, block.y + block.height],
+                            [block.x + block.length/math.sqrt(2), block.y + block.height - block.length/math.sqrt(2)],
+                            [block.x + block.length/math.sqrt(2), block.y - block.length/math.sqrt(2)]]
+            
+            # left = [block.x + block.length/math.sqrt(2)/2 - block.width/math.sqrt(2),
+            #         block.y - block.length/math.sqrt(2) - block.width/math.sqrt(2)/2]
+            # right = [block.x + block.length/math.sqrt(2)/2,
+            #         block.y - block.length/math.sqrt(2)/2]
+            # letterX = block.x + block.length/math.sqrt(2)/2 - block.width/math.sqrt(2)/2
+            # letterY = block.y - (block.length/math.sqrt(2) + block.length/math.sqrt(2)/2)/2 - block.width/math.sqrt(2)/4
+            
+            pygame.draw.polygon(gameDisplay, WHITE, topPointsList)
+            pygame.draw.polygon(gameDisplay,LIGHTBLUE, leftPointsList)
+            pygame.draw.polygon(gameDisplay,BLUE, rightPointsList)
+            
+            # letterFont = pygame.font.Font("TheLightFont.ttf",80)
+            # letterTitle = letterFont.render(block.letter,True,PINK,WHITE)
+            # letterTitleRect = letterTitle.get_rect(center=(letterX, letterY))
+            # gameDisplay.blit(letterTitle, letterTitleRect)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
