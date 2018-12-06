@@ -1,14 +1,17 @@
+## IMPORTS
+
 import pygame, sys
 from pygame.locals import *
 import os
 import Leap, sys, thread, time
 from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
 from Block import Block
-from Letter import Letter
 import math
 import ast
 import random
 
+
+## INITIALIZATION
 
 pygame.init()
 displayWidth = 800
@@ -22,11 +25,12 @@ margin1 = 10
 margin2 = 20
 margin3 = 40
 
-# Loading in images
+# Images
 question = pygame.image.load("questionmark.png")
 question = pygame.transform.scale(question, (30,30))
 questionRect = question.get_rect(center=(displayWidth - margin3, margin3))
 
+# Colors
 BLUE = (100, 100, 255)
 LIGHTBLUE = (153, 204, 255)
 LIGHTYELLOW = (255,236,139)
@@ -35,22 +39,70 @@ CORAL = (240, 128, 128)
 PINK = (255, 192, 203)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+GREEN = (20, 255, 140)
+RED = (255, 118, 97)
 
+# Sign data for what user is displaying
 signData = {"Thumb position" : (0, 0, 0),
             "Thumb direction" : (0, 0, 0),
+            "TI distance" : [0],
             "Index position" : (0, 0, 0),
             "Index direction" : (0, 0, 0),
+            "IM distance" : [0],
             "Middle position" : (0, 0, 0),
             "Middle direction" : (0, 0, 0),
+            "MR distance" : [0],
             "Ring position" : (0, 0, 0),
             "Ring direction" : (0, 0, 0),
+            "RP distance" : [0],
             "Pinky position" : (0, 0, 0),
             "Pinky direction" : (0, 0, 0),}
 
-oneHand = False
+gestureData = {}
 newSigns = {}
 
-class MainListener(Leap.Listener):
+## HELPER FUNCTIONS
+
+# Checks if the mouse is on the button given the rect
+def onButton(buttonRect):
+    mouse = pygame.mouse.get_pos()
+    if (mouse[0] >= buttonRect[0] and mouse[1] >= buttonRect[1] and 
+        mouse[0] <= buttonRect[0] + buttonRect[2] and 
+        mouse[1] <= buttonRect[1] + buttonRect[3]):
+            return True
+    return False
+
+# draws the letter in the center of the screen
+def drawLetter(letter, background):
+    letterFont = pygame.font.SysFont("None", 200)
+    letterName = letterFont.render(letter,True,BLUE,background)
+    letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/2 + margin2))
+    gameDisplay.blit(letterName, letterRect)
+    
+# for accessing text file with dictionary
+def writeFile(path, contents):
+    with open(path, "wt") as f:
+        f.write(contents)
+        
+def readFile(path):
+    with open(path, "rt") as f:
+        return f.read()
+    
+# distance between two points
+def distance2D(point1, point2):
+    x1, y1 = point1[0], point1[1]
+    x2, y2 = point2[0], point2[1]
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)  
+    
+def distance3D(point1, point2):
+    x1, y1, z1 = point1[0], point1[1], point1[2]
+    x2, y2, z2 = point2[0], point2[1], point2[2]
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2)  
+
+## DISTANCE LISTENER
+
+class DistanceListener(Leap.Listener):
+    # taken from Leap Motion sample and modified
     finger_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']
     bone_names = ['Metacarpal', 'Proximal', 'Intermediate', 'Distal']
     state_names = ['STATE_INVALID', 'STATE_START', 'STATE_UPDATE', 'STATE_END']
@@ -75,7 +127,6 @@ class MainListener(Leap.Listener):
         print "Exited"
 
     def on_frame(self, controller):
-        
         frame = controller.frame()
         # Code for transformed data points from Leap Motion developer guide
         for hand in frame.hands:
@@ -86,37 +137,20 @@ class MainListener(Leap.Listener):
             hand_transform = Leap.Matrix(hand_x_basis, hand_y_basis, hand_z_basis, hand_origin)
             hand_transform = hand_transform.rigid_inverse()
         
+            fingertips = {}
             for finger in hand.fingers:
+                fingertipPos = finger.bone(3).next_joint
+                fingertips[self.finger_names[finger.type]] = (fingertipPos.x, fingertipPos.y, fingertipPos.z)
                 transformed_position = hand_transform.transform_point(finger.tip_position)
                 transformed_direction = hand_transform.transform_direction(finger.direction)
                 signData[self.finger_names[finger.type] + " position"] = (transformed_position.x, transformed_position.y, transformed_position.z)
                 signData[self.finger_names[finger.type] + " direction"] = (transformed_direction.x, transformed_direction.y, transformed_direction.z)
+            for i in range(len(fingertips) - 1):
+                signData[self.finger_names[i][0] + self.finger_names[i + 1][0] + " distance"] = [distance3D(fingertips[self.finger_names[i]],
+                                                                                                            fingertips[self.finger_names[i + 1]])]
 
-def main():
-    # Create a sample listener and controller
-    listener = MainListener()
-    controller = Leap.Controller()
 
-    # Have the sample listener receive events from the controller
-    controller.add_listener(listener)
-
-    # Keep this process running until Enter is pressed
-    print "Press Enter to quit..."
-    try:
-        sys.stdin.readline()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        # Remove the sample listener when done
-        controller.remove_listener(listener)
-
-def onButton(buttonRect):
-    mouse = pygame.mouse.get_pos()
-    if (mouse[0] >= buttonRect[0] and mouse[1] >= buttonRect[1] and 
-        mouse[0] <= buttonRect[0] + buttonRect[2] and 
-        mouse[1] <= buttonRect[1] + buttonRect[3]):
-            return True
-    return False
+## START SCREEN
 
 def startScreen():
     start = True
@@ -133,23 +167,29 @@ def startScreen():
         titleName = titleFont.render("Learn ASL",True,BLUE,LIGHTBLUE)
         titleRect = titleName.get_rect(center=(displayWidth/2, displayHeight/2 - 50))
         gameDisplay.blit(titleName, titleRect)
+        
         # creates help icon
         gameDisplay.blit(question, questionRect)
+        
         # font for buttons
         buttonFont = pygame.font.Font("TheLightFont.ttf",30)
+        
         # creates button for dictionary mode
         buttonW, buttonH = 180, 60
         x1 = displayWidth/4 - buttonW/2
         y1 = displayHeight/2 - buttonH/2 + 50
         dictionaryButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        
         # creates button for game mode
         x2 = displayWidth/2 - buttonW/2
         y2 = displayHeight/2 - buttonH/2 + 50
         gameButton = pygame.Rect(x2, y2, buttonW, buttonH)
+        
         # creates button for test mode
         x3 = displayWidth/4 * 3 - buttonW/2
         y3 = displayHeight/2 - buttonH/2 + 50
         testButton = pygame.Rect(x3, y3, buttonW, buttonH)
+        
         # makes button change colors when mouse is over it
         if onButton(dictionaryButton):
             pygame.draw.rect(gameDisplay, GRAYYELLOW, dictionaryButton)
@@ -178,7 +218,6 @@ def startScreen():
             pixels.replace(Color(211, 211, 211), Color(255,255,255))
             del pixels
             
-            
         # creates text on button
         dictRect = dictName.get_rect(center=(displayWidth/4, displayHeight/2 + 50))
         gameDisplay.blit(dictName, dictRect)
@@ -195,23 +234,17 @@ def startScreen():
                 if onButton(dictionaryButton):
                     dictionaryScreen()
                 if onButton(gameButton):
-                    gameScreen()
+                    gameInstructions()
                 if onButton(questionRect):
                     helpScreen()
-                if onButton(testRect):
+                if onButton(testButton):
                     testScreen()
         
         pygame.display.update()
-    
 
+   
+## HELP SCREEN
 
-def drawLetter(letter):
-    letterFont = pygame.font.SysFont("None", 200)
-    letterName = letterFont.render(letter,True,BLUE,PINK)
-    letterRect = letterName.get_rect(center=(displayWidth/2, displayHeight/2 + margin2))
-    gameDisplay.blit(letterName, letterRect)
-
-    
 def helpScreen():
     help = True
     
@@ -276,30 +309,23 @@ def helpScreen():
                     inputScreen()
 
         pygame.display.update()
-    
-def writeFile(path, contents):
-    with open(path, "wt") as f:
-        f.write(contents)
-        
-def readFile(path):
-    with open(path, "rt") as f:
-        return f.read()
-    
+
+## INPUT SCREEN
 
 def inputScreen():
     
-    inputScreen = True
+    input = True
     
     # Create a sample listener and controller
-    listener = MainListener()
+    listener = DistanceListener()
     controller = Leap.Controller()
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
     
+    timesClicked = 0
     sign = ""
     
-    while inputScreen:
-
+    while input:
 
         #Textbox
         gameDisplay.fill(WHITE) # draw screen fill
@@ -317,18 +343,21 @@ def inputScreen():
         #Instructions
         instructFont = pygame.font.Font("leaguespartan.otf",30)
         instructName1 = instructFont.render("Type in the name of the sign,",True,BLUE,WHITE)
-        instructName2 = instructFont.render("and press enter to input it to the system!",True,BLUE,WHITE)
+        instructName2 = instructFont.render("and click enter to input it to the system!",True,BLUE,WHITE)
         instructRect1 = instructName1.get_rect(center=(displayWidth/2, displayHeight/2 - 25 - margin3))
         instructRect2 = instructName2.get_rect(center=(displayWidth/2, displayHeight/2 + 25 - margin3))
         gameDisplay.blit(instructName1, instructRect1)
         gameDisplay.blit(instructName2, instructRect2)
         
         buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+        buttonFont2 = pygame.font.Font("TheLightFont.ttf",30)
         
         buttonW, buttonH = 180, 40
         x1 = margin1
         y1 = displayHeight - buttonH - margin1
         backButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        enterButton = pygame.Rect(displayWidth/2 - buttonW/2, displayHeight*4/5 - buttonH/2,
+                                    buttonW, buttonH)
         
         if onButton(backButton):
             pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
@@ -336,12 +365,24 @@ def inputScreen():
         else:
             pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
             backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        if onButton(enterButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, enterButton)
+            enterName = buttonFont2.render("Enter",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, enterButton)
+            enterName = buttonFont2.render("Enter",True,BLUE,LIGHTYELLOW)
         
         # creates text on back to main menu button
         x2 = margin1 + buttonW/2
         y2 = displayHeight - buttonH/2 - margin1
         backRect = backName.get_rect(center=(x2, y2))
         gameDisplay.blit(backName, backRect)
+        
+        # creates text on enter button
+        x3 = displayWidth/2
+        y3 = displayHeight*4/5
+        enterRect = enterName.get_rect(center=(x3, y3))
+        gameDisplay.blit(enterName, enterRect)        
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -350,36 +391,103 @@ def inputScreen():
             if event.type == MOUSEBUTTONDOWN:
                 if onButton(backButton):
                     startScreen()
+                if onButton(enterButton):
+                    if timesClicked == 4:
+                        inputScreen()
+                    else:
+                        timesClicked += 1
             if event.type == pygame.KEYDOWN:
                 # user typing in name of the sign or letter
                 if event.key == pygame.K_BACKSPACE:
                     sign = sign[:-1]
-                elif event.key == pygame.K_RETURN:
-                    newSigns[sign] = signData
-                    currSigns = readFile("signDictionary.txt")
-                    if currSigns != "":
-                        currSigns = ast.literal_eval(currSigns)
-                        newSigns.update(currSigns)
-                    writeFile("signDictionary.txt", str(newSigns))
-                    sign = ""
                 elif event.key == pygame.K_SPACE:
                     sign += " "
                 else:
                     sign += event.unicode
-                    
+        if timesClicked == 1:
+            coverHeight = 200
+            cover = pygame.Rect(0,displayHeight/4, displayWidth,coverHeight)
+            pygame.draw.rect(gameDisplay, WHITE, cover)
+            instructName1 = instructFont.render("Display the sign and press enter",True,BLUE,WHITE)
+            instructName2 = instructFont.render("to input the sign once.",True,BLUE,WHITE)
+            instructRect1 = instructName1.get_rect(center=(displayWidth/2, displayHeight/2 - 25 - margin3))
+            instructRect2 = instructName2.get_rect(center=(displayWidth/2, displayHeight/2 + 25 - margin3))
+            gameDisplay.blit(instructName1, instructRect1)
+            gameDisplay.blit(instructName2, instructRect2)
+        if timesClicked == 2:
+            if sign not in newSigns:
+                newSigns[sign] = [signData]
+            coverHeight = 200
+            cover = pygame.Rect(0,displayHeight/4, displayWidth,coverHeight)
+            pygame.draw.rect(gameDisplay, WHITE, cover)
+            instructName1 = instructFont.render("Now display the sign slightly",True,BLUE,WHITE)
+            instructName2 = instructFont.render("differently and hit enter.",True,BLUE,WHITE)
+            instructRect1 = instructName1.get_rect(center=(displayWidth/2, displayHeight/2 - 25 - margin3))
+            instructRect2 = instructName2.get_rect(center=(displayWidth/2, displayHeight/2 + 25 - margin3))
+            gameDisplay.blit(instructName1, instructRect1)
+            gameDisplay.blit(instructName2, instructRect2)
+        if timesClicked == 3:
+            if len(newSigns[sign]) == 1:
+                newSigns[sign].append(signData)
+            coverHeight = 200
+            cover = pygame.Rect(0,displayHeight/4, displayWidth,coverHeight)
+            pygame.draw.rect(gameDisplay, WHITE, cover)
+            instructName1 = instructFont.render("Display it one last time,",True,BLUE,WHITE)
+            instructName2 = instructFont.render("a little differently again.",True,BLUE,WHITE)
+            instructRect1 = instructName1.get_rect(center=(displayWidth/2, displayHeight/2 - 25 - margin3))
+            instructRect2 = instructName2.get_rect(center=(displayWidth/2, displayHeight/2 + 25 - margin3))
+            gameDisplay.blit(instructName1, instructRect1)
+            gameDisplay.blit(instructName2, instructRect2)
+        if timesClicked == 4:
+            if sign != "" and len(newSigns[sign]) == 2:
+                newSigns[sign].append(signData)
+                currSigns = readFile("signDictionary.txt")
+                if currSigns != "":
+                    currSigns = ast.literal_eval(currSigns)
+                    currSigns.update(newSigns)
+                writeFile("signDictionary.txt", str(currSigns))
+                print("Entered!")
+                sign = ""
+            coverHeight = 200
+            cover = pygame.Rect(0,displayHeight/4, displayWidth,coverHeight)
+            pygame.draw.rect(gameDisplay, WHITE, cover)
+            instructName1 = instructFont.render("Sign inputted into the system!",True,BLUE,WHITE)
+            instructRect1 = instructName1.get_rect(center=(displayWidth/2, displayHeight/2 - 25 - margin3))
+            gameDisplay.blit(instructName1, instructRect1)
+            # creates enter button
+            buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+            buttonW, buttonH = 250, 60
+            enterButton = pygame.Rect(displayWidth/2 - buttonW/2, displayHeight*4/5 - buttonH/2,
+                                    buttonW, buttonH)
+            
+            if onButton(enterButton):
+                pygame.draw.rect(gameDisplay, GRAYYELLOW, enterButton)
+                enterName = buttonFont2.render("Enter another sign",True,BLUE,GRAYYELLOW)
+            else:
+                pygame.draw.rect(gameDisplay, LIGHTYELLOW, enterButton)
+                enterName = buttonFont2.render("Enter another sign",True,BLUE,LIGHTYELLOW)
+            
+            # creates text on enter button
+            x3 = displayWidth/2
+            y3 = displayHeight*4/5
+            enterRect = enterName.get_rect(center=(x3,y3))
+            gameDisplay.blit(enterName, enterRect) 
+            
+        # draws name of sign in textbox
         signFont = pygame.font.Font("CODE Bold.otf", 50)
         signText = signFont.render(sign, True, BLACK, LIGHTYELLOW)
         signRect = signText.get_rect(center=(displayWidth/2,displayHeight/3*2)) # draw user input
         gameDisplay.blit(signText, signRect)
-
     
         pygame.display.update()
-    
+        
+
+## DICTIONARY SCREEN
 
 def dictionaryScreen():
     diction = True
     # Create a sample listener and controller
-    listener = MainListener()
+    listener = DistanceListener()
     controller = Leap.Controller()
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
@@ -422,16 +530,42 @@ def dictionaryScreen():
  
         signDictString = readFile("signDictionary.txt")
         signDict = ast.literal_eval(signDictString)
-        count = 0
+        
+        #checks through the signs in the dictionary and displays if a match
+        
+        #ORIGINAL ERROR BOUND METHOD
+        # count = 0
+        # for sign in signDict:
+        #     for point in signData:
+        #         for i in range(len(signData[point])):
+        #             if abs(signData[point][i] - signDict[sign][point][i]) >= 25:
+        #                 count = 1
+        #                 break
+        #     if count == 0:
+        
+        #RATIO OF ERRORS METHOD
+        # count = 0
+        # for sign in signDict:
+        #     for point in signData:
+        #         for i in range(len(signData[point])):
+        #             # print(abs(signData[point][i]/signDict[sign][point][i]))
+        #             print(signDict[sign][point][i])
+        #             # if abs(signData[point][i]/signDict[sign][point][i] - 1) > 2:
+        #             #     count = 1
+        #     if count == 0:
+        #         drawLetter(str(sign), PINK)
+        #     count = 0
+            
+        #SUM OF SQUARES ERRORS METHOD
         for sign in signDict:
-            for point in signData:
-                for i in range(0,3):
-                    if abs(signData[point][i] - signDict[sign][point][i]) >= 20:
-                        count = 1
-                        break
-            if count == 0:
-                drawLetter(str(sign))
-            count = 0
+            for i in range(0,3):
+                sumOfErrors = 0
+                for point in signData:
+                    for j in range(len(signData[point])):
+                        sumOfErrors += (signData[point][j] - signDict[sign][i][point][j]) ** 2
+                if sumOfErrors < 8000:
+                    sumOfErrors = 0
+                    drawLetter(str(sign),PINK)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -444,24 +578,93 @@ def dictionaryScreen():
 
         pygame.display.update()
         
-def distance(point1, point2):
-    x1, y1 = point1[0], point1[1]
-    x2, y2 = point2[0], point2[1]
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)        
+## GAME INSTRUCTIONS
+
+def gameInstructions():
+    
+    gameInstruct = True
+    
+    while gameInstruct:
+        gameDisplay.fill(PINK)
+        instructFont = pygame.font.Font("TheLightFont.ttf",35)
+        instructName1 = instructFont.render("Put up the ASL sign of the block to place it",True,BLUE,PINK)
+        instructName2 = instructFont.render("down. Try to place them as accurately as",True,BLUE,PINK)
+        instructName3 = instructFont.render("possible, if they don't land on the stack,",True,BLUE,PINK)
+        instructName4 = instructFont.render("they get cut off and the next block is smaller!",True,BLUE,PINK)
+        instructRect1 = instructName1.get_rect(center=(displayWidth/2, displayHeight/2 - 25 - margin3))
+        instructRect2 = instructName2.get_rect(center=(displayWidth/2, displayHeight/2 + 25 - margin3))
+        instructRect3 = instructName3.get_rect(center=(displayWidth/2, displayHeight/2 + 75 - margin3))
+        instructRect4 = instructName4.get_rect(center=(displayWidth/2, displayHeight/2 + 125 - margin3))
+        gameDisplay.blit(instructName1, instructRect1)
+        gameDisplay.blit(instructName2, instructRect2)
+        gameDisplay.blit(instructName3, instructRect3)
+        gameDisplay.blit(instructName4, instructRect4)
+        titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
+        instructTitle = titleFont.render("How to Play",True,BLUE,PINK)
+        instructTitleRect = instructTitle.get_rect(center=(displayWidth/2, displayHeight/8))
+        gameDisplay.blit(instructTitle, instructTitleRect)
+        
+        pygame.draw.line(gameDisplay, BLUE, (margin2 * 3, displayHeight/5), (displayWidth - margin2 * 3, displayHeight/5), 3)
+        
+        buttonFont = pygame.font.Font("TheLightFont.ttf",20)
+        
+        buttonW, buttonH = 180, 40
+        x1 = margin1
+        y1 = displayHeight - buttonH - margin1
+        backButton = pygame.Rect(x1, y1, buttonW, buttonH)
+        
+        x4 = displayWidth - buttonW - margin1
+        y4 = displayHeight - buttonH - margin1
+        startButton = pygame.Rect(x4, y4, buttonW, buttonH)
+        
+        if onButton(backButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, backButton)
+            backName = buttonFont.render("BACK TO MAIN MENU",True,BLUE,LIGHTYELLOW)
+        if onButton(startButton):
+            pygame.draw.rect(gameDisplay, GRAYYELLOW, startButton)
+            startName = buttonFont.render("START",True,BLUE,GRAYYELLOW)
+        else:
+            pygame.draw.rect(gameDisplay, LIGHTYELLOW, startButton)
+            startName = buttonFont.render("START",True,BLUE,LIGHTYELLOW)
+        
+        # creates text on back to main menu button
+        x2 = margin1 + buttonW/2
+        y2 = displayHeight - buttonH/2 - margin1
+        backRect = backName.get_rect(center=(x2, y2))
+        gameDisplay.blit(backName, backRect)
+        
+        x3 = displayWidth - margin1 - buttonW/2
+        y3 = displayHeight - buttonH/2 - margin1
+        startRect = startName.get_rect(center=(x3, y3))
+        gameDisplay.blit(startName, startRect)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == MOUSEBUTTONDOWN:
+                if onButton(backButton):
+                    startScreen()
+                if onButton(startButton):
+                    gameScreen()
+
+        pygame.display.update()
+        
+
+## GAME SCREEN
 
 def gameScreen():
-
     game = True
     # Create a sample listener and controller
-    listener = MainListener()
+    listener = DistanceListener()
     controller = Leap.Controller()
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
     
-    randAscii = random.randint(65,90)
-    randLetter = chr(randAscii)
-    
-    baseBlock = Block(displayWidth/2, displayHeight*2/3 + margin3, 200, 200, 8, "right", randLetter)
+    baseBlock = Block(displayWidth/2, displayHeight*2/3 + margin3, 200, 200, 8, "right", "")
     
     randAscii = random.randint(65,90)
     randLetter = chr(randAscii)
@@ -496,10 +699,6 @@ def gameScreen():
         y2 = displayHeight - buttonH/2 - margin1
         backRect = backName.get_rect(center=(x2, y2))
         gameDisplay.blit(backName, backRect)
-
-        
-        clock.tick(30)
-        
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -508,61 +707,7 @@ def gameScreen():
             if event.type == MOUSEBUTTONDOWN:
                 if onButton(backButton):
                     startScreen()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    # chops off part of block that is not over previous block
-                    
-                    if blocks[-1].direction == "right":
-                        
-                        #if block does not overlap at all, end game
-                        if blocks[-1].getLeftCorner()[0] > blocks[-2].getBottomCorner()[0] or\
-                            blocks[-1].getBottomCorner()[0] < blocks[-2].getLeftCorner()[0]:
-                            endGame(score)
-                        score += 1
-                        if blocks[-1].getLeftCorner()[0] < blocks[-2].getLeftCorner()[0]:
-                            newLeft = [blocks[-2].getLeftCorner()[0], blocks[-2].getLeftCorner()[-1] - blocks[-1].height]
-                            choppedDist = distance(blocks[-1].getLeftCorner(), newLeft)
-                            blocks[-1].width -= choppedDist
-                        if blocks[-1].getBottomCorner()[0] > blocks[-2].getBottomCorner()[0]:
-                            newBottom = [blocks[-2].getBottomCorner()[0], blocks[-2].getBottomCorner()[-1] - blocks[-1].height]
-                            choppedDist = distance(blocks[-1].getBottomCorner(), newBottom)
-                            blocks[-1].x, blocks[-1].y = newBottom[0], newBottom[1]
-                            blocks[-1].width -= choppedDist   
-                    else:
-                        
-                        #if block does not overlap at all, end game
-                        if blocks[-1].getBottomCorner()[0] > blocks[-2].getRightCorner()[0] or\
-                            blocks[-1].getRightCorner()[0] < blocks[-2].getBottomCorner()[0]:
-                            endGame(score)
-                        score += 1
-                        if blocks[-1].getRightCorner()[0] > blocks[-2].getRightCorner()[0]:
-                            newRight = [blocks[-2].getRightCorner()[0], blocks[-2].getRightCorner()[-1] - blocks[-1].height]
-                            choppedDist = distance(blocks[-1].getRightCorner(), newRight)
-                            blocks[-1].length -= choppedDist
-                        if blocks[-1].getBottomCorner()[0] < blocks[-2].getBottomCorner()[0]:
-                            newBottom = [blocks[-2].getBottomCorner()[0], blocks[-2].getBottomCorner()[-1] - blocks[-1].height]
-                            choppedDist = distance(blocks[-1].getBottomCorner(), newBottom)
-                            blocks[-1].x, blocks[-1].y = newBottom[0], newBottom[1]
-                            blocks[-1].length -= choppedDist   
-                    
-                    # Scrolls down with new blocks
-                    for block in blocks:
-                        block.y += 20
-                        
-                    # Creates new block after current one is placed
-                    if score % 2 == 0:
-                        dir = "right"
-                    else:
-                        dir = "left"
-                    if score % 5 == 0:
-                        speed = abs(blocks[-1].speed) + 1
-                    else:
-                        speed = abs(blocks[-1].speed)
-                    randAscii = random.randint(65,90)
-                    randLetter = chr(randAscii)
-                    newBlock = Block(blocks[-1].x, blocks[-1].y - blocks[-1].height, blocks[-1].length, blocks[-1].width, speed, dir, randLetter)
-                    blocks.append(newBlock)
-                    
+  
         movingBlock = blocks[-1]
         
         if movingBlock.direction == "right":
@@ -574,6 +719,69 @@ def gameScreen():
             
         movingBlock.moveBlock()
         
+        signDictString = readFile("signDictionary.txt")
+        signDict = ast.literal_eval(signDictString)
+        
+        for i in range(0,3):
+            sumOfErrors = 0
+            for point in signData:
+                for j in range(len(signData[point])):
+                    sumOfErrors += (signData[point][j] - signDict[movingBlock.letter][i][point][j]) ** 2
+            print(sumOfErrors)
+            if sumOfErrors < 8000:
+                # chops off part of block that is not over previous block
+                if blocks[-1].direction == "right":
+                    
+                    #if block does not overlap at all, end game
+                    if blocks[-1].getLeftCorner()[0] > blocks[-2].getBottomCorner()[0] or\
+                        blocks[-1].getBottomCorner()[0] < blocks[-2].getLeftCorner()[0]:
+                        endGame(score)
+                    score += 1
+                    if blocks[-1].getLeftCorner()[0] < blocks[-2].getLeftCorner()[0]:
+                        newLeft = [blocks[-2].getLeftCorner()[0], blocks[-2].getLeftCorner()[-1] - blocks[-1].height]
+                        choppedDist = distance2D(blocks[-1].getLeftCorner(), newLeft)
+                        blocks[-1].width -= choppedDist
+                    if blocks[-1].getBottomCorner()[0] > blocks[-2].getBottomCorner()[0]:
+                        newBottom = [blocks[-2].getBottomCorner()[0], blocks[-2].getBottomCorner()[-1] - blocks[-1].height]
+                        choppedDist = distance2D(blocks[-1].getBottomCorner(), newBottom)
+                        blocks[-1].x, blocks[-1].y = newBottom[0], newBottom[1]
+                        blocks[-1].width -= choppedDist   
+                else:
+                    
+                    #if block does not overlap at all, end game
+                    if blocks[-1].getBottomCorner()[0] > blocks[-2].getRightCorner()[0] or\
+                        blocks[-1].getRightCorner()[0] < blocks[-2].getBottomCorner()[0]:
+                        endGame(score)
+                    score += 1
+                    if blocks[-1].getRightCorner()[0] > blocks[-2].getRightCorner()[0]:
+                        newRight = [blocks[-2].getRightCorner()[0], blocks[-2].getRightCorner()[-1] - blocks[-1].height]
+                        choppedDist = distance2D(blocks[-1].getRightCorner(), newRight)
+                        blocks[-1].length -= choppedDist
+                    if blocks[-1].getBottomCorner()[0] < blocks[-2].getBottomCorner()[0]:
+                        newBottom = [blocks[-2].getBottomCorner()[0], blocks[-2].getBottomCorner()[-1] - blocks[-1].height]
+                        choppedDist = distance2D(blocks[-1].getBottomCorner(), newBottom)
+                        blocks[-1].x, blocks[-1].y = newBottom[0], newBottom[1]
+                        blocks[-1].length -= choppedDist   
+            
+                # Scrolls down with new blocks
+                for block in blocks:
+                    block.y += 20
+                    
+                # Creates new block after current one is placed
+                if score % 2 == 0:
+                    dir = "right"
+                else:
+                    dir = "left"
+                if score % 5 == 0:
+                    speed = abs(blocks[-1].speed) + 1
+                else:
+                    speed = abs(blocks[-1].speed)
+                randAscii = random.randint(65,90)
+                randLetter = chr(randAscii)
+                newBlock = Block(blocks[-1].x, blocks[-1].y - blocks[-1].height, blocks[-1].length, blocks[-1].width, speed, dir, randLetter)
+                blocks.append(newBlock)
+            sumOfErrors = 0
+    
         # Draws score at the top of the screen
         scoreFont = pygame.font.Font("NewAmsterdam.ttf",70)
         scoreTitle = scoreFont.render("Score: " + str(score),True,BLUE,PINK)
@@ -583,8 +791,7 @@ def gameScreen():
         
         for block in blocks: 
             
-            
-            # removes the block if it goes off the screen and is not the moving block
+            # removes the block if it goes off the bottom of the screen and is not the moving block
             if block.y - block.length/math.sqrt(2) - block.width/math.sqrt(2) > displayHeight and blocks.index(block) != len(blocks) -1:
                 blocks.remove(block)
 
@@ -609,6 +816,7 @@ def gameScreen():
 
         pygame.display.update()
     
+## END GAME SCREEN
 def endGame(score):
 
     end = True
@@ -678,21 +886,53 @@ def endGame(score):
 
         pygame.display.update()
     
-    
-def testScreen():
+## TEST SCREEN
 
+def testScreen():
+    
     test = True
     # Create a sample listener and controller
-    listener = MainListener()
+    listener = DistanceListener()
     controller = Leap.Controller()
     # Have the sample listener receive events from the controller
     controller.add_listener(listener)
     
+    screenColor = RED
+    titleColor = RED
+    randAscii = random.randint(65,90)
+    sign = chr(randAscii)
+    
+    timeGreen = 0
+    
+    
     while test:
         
-        gameDisplay.fill(PINK)
+        # "imports" the signDict with data on each sign in the system
+        signDictString = readFile("signDictionary.txt")
+        signDict = ast.literal_eval(signDictString)
+        
+        # checks if the sign matches the currently displayed sign
+        for i in range(0,3):
+            sumOfErrors = 0
+            for point in signData:
+                for j in range(len(signData[point])):
+                    sumOfErrors += (signData[point][j] - signDict[sign][i][point][j]) ** 2
+            if sumOfErrors < 9000:
+                screenColor = GREEN
+                titleColor = GREEN
+                clock = pygame.time.Clock()
+                dt = clock.tick()
+                timeGreen += 1
+                if timeGreen > 30:
+                    timeGreen = 0
+                    screenColor = RED
+                    titleColor = RED
+                    randAscii = random.randint(65,90)
+                    sign = chr(randAscii)
+                
+        gameDisplay.fill(screenColor)
         titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
-        testTitle = titleFont.render("Test Mode",True,BLUE,PINK)
+        testTitle = titleFont.render("Test Mode",True,BLUE,titleColor)
         testTitleRect = testTitle.get_rect(center=(displayWidth/2, displayHeight/8))
         gameDisplay.blit(testTitle, testTitleRect)
         
@@ -718,6 +958,9 @@ def testScreen():
         backRect = backName.get_rect(center=(x2, y2))
         gameDisplay.blit(backName, backRect)
     
+    
+        # displays sign to match on screen
+        drawLetter(sign, screenColor)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

@@ -7,7 +7,6 @@
 ################################################################################
 import os
 
-print(os.getcwd())
 import Leap, sys, thread, time
 from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
 
