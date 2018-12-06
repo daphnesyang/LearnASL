@@ -102,7 +102,7 @@ def distance3D(point1, point2):
 ## DISTANCE LISTENER
 
 class DistanceListener(Leap.Listener):
-    # taken from Leap Motion sample and modified
+    # taken from Leap Motion sample.py file and modified
     finger_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']
     bone_names = ['Metacarpal', 'Proximal', 'Intermediate', 'Distal']
     state_names = ['STATE_INVALID', 'STATE_START', 'STATE_UPDATE', 'STATE_END']
@@ -563,8 +563,11 @@ def dictionaryScreen():
                 for point in signData:
                     for j in range(len(signData[point])):
                         sumOfErrors += (signData[point][j] - signDict[sign][i][point][j]) ** 2
-                if sumOfErrors < 8000:
+                if sumOfErrors < 7500:
                     sumOfErrors = 0
+                    coverHeight = 40
+                    cover = pygame.Rect(displayWidth/2 - coverHeight/2,displayHeight/2 + margin2 - coverHeight/2, coverHeight,coverHeight)
+                    pygame.draw.rect(gameDisplay, PINK, cover)
                     drawLetter(str(sign),PINK)
         
         for event in pygame.event.get():
@@ -722,13 +725,14 @@ def gameScreen():
         signDictString = readFile("signDictionary.txt")
         signDict = ast.literal_eval(signDictString)
         
+        count = 0
         for i in range(0,3):
             sumOfErrors = 0
             for point in signData:
                 for j in range(len(signData[point])):
                     sumOfErrors += (signData[point][j] - signDict[movingBlock.letter][i][point][j]) ** 2
-            print(sumOfErrors)
-            if sumOfErrors < 8000:
+            if sumOfErrors < 7000 and count == 0:
+                count += 1
                 # chops off part of block that is not over previous block
                 if blocks[-1].direction == "right":
                     
@@ -780,7 +784,7 @@ def gameScreen():
                 randLetter = chr(randAscii)
                 newBlock = Block(blocks[-1].x, blocks[-1].y - blocks[-1].height, blocks[-1].length, blocks[-1].width, speed, dir, randLetter)
                 blocks.append(newBlock)
-            sumOfErrors = 0
+                sumOfErrors = 0
     
         # Draws score at the top of the screen
         scoreFont = pygame.font.Font("NewAmsterdam.ttf",70)
@@ -904,7 +908,6 @@ def testScreen():
     
     timeGreen = 0
     
-    
     while test:
         
         # "imports" the signDict with data on each sign in the system
@@ -912,23 +915,31 @@ def testScreen():
         signDict = ast.literal_eval(signDictString)
         
         # checks if the sign matches the currently displayed sign
+        matched = False
+        count = 0
         for i in range(0,3):
             sumOfErrors = 0
             for point in signData:
                 for j in range(len(signData[point])):
                     sumOfErrors += (signData[point][j] - signDict[sign][i][point][j]) ** 2
-            if sumOfErrors < 9000:
+            print(sumOfErrors)
+            if sumOfErrors < 8000 and count == 0:
+                count += 1
                 screenColor = GREEN
                 titleColor = GREEN
+                matched = True
+            if matched:
                 clock = pygame.time.Clock()
                 dt = clock.tick()
                 timeGreen += 1
-                if timeGreen > 30:
+                if timeGreen > 25:
+                    matched = False
                     timeGreen = 0
                     screenColor = RED
                     titleColor = RED
                     randAscii = random.randint(65,90)
                     sign = chr(randAscii)
+                sumOfErrors = 0
                 
         gameDisplay.fill(screenColor)
         titleFont = pygame.font.Font("NewAmsterdam.ttf",120)
